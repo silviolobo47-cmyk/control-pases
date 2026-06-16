@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pases DGT">
+<meta name="theme-color" content="#1a3a5c">
+<title>Control de Pases — DGT</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link rel="manifest" href="manifest.json">
+<style>
+:root {
+  --azul:        #1a3a5c;
+  --azul-medio:  #2563a8;
+  --azul-claro:  #e8f0fb;
+  --acento:      #e63946;
+  --verde:       #1a7a4a;
+  --verde-claro: #e6f5ed;
+  --naranja:     #d97706;
+  --naranja-bg:  #fef3c7;
+  --gris-borde:  #d0d7e3;
+  --gris-fila:   #f4f7fc;
+  --texto:       #1a2535;
+  --blanco:      #ffffff;
+  --bg:          #eef2f9;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--texto);display:flex;flex-direction:column;max-width:600px;margin:0 auto;}
+
+/* HEADER */
+header{
+  background:var(--azul);color:#fff;
+  padding:0 16px;height:56px;min-height:56px;
+  display:flex;align-items:center;justify-content:space-between;
+  box-shadow:0 2px 8px rgba(0,0,0,.22);
+  position:relative;z-index:10;
+}
+header h1{font-size:.95rem;font-weight:700;letter-spacing:.02em;line-height:1.25;}
+header h1 small{display:block;font-size:.68rem;opacity:.65;font-weight:400;margin-top:1px;}
+.header-badge{background:rgba(255,255,255,.15);border-radius:20px;padding:4px 12px;font-size:.78rem;font-weight:700;white-space:nowrap;}
+
+/* BANNER GUARDADO */
+#banner-guardado{
+  background:var(--verde);color:#fff;
+  padding:7px 16px;font-size:.8rem;font-weight:600;
+  display:none;align-items:center;gap:8px;
+  animation:slideDown .25s ease-out;
+}
+@keyframes slideDown{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
+#banner-guardado.warn{background:#c05621;}
+
+/* TABS */
+.tabs{
+  display:flex;background:var(--azul);
+  border-top:1px solid rgba(255,255,255,.12);
+  min-height:48px;flex-shrink:0;
+}
+.tab{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:5px;
+  color:rgba(255,255,255,.55);font-size:.8rem;font-weight:600;
+  cursor:pointer;border-bottom:3px solid transparent;
+  transition:all .15s;padding:0 4px;letter-spacing:.02em;user-select:none;
+}
+.tab.activo{color:#fff;border-bottom-color:#fff;}
+.tab svg{width:16px;height:16px;flex-shrink:0;}
+.tab-badge{background:var(--acento);color:#fff;border-radius:10px;padding:1px 6px;font-size:.68rem;margin-left:2px;}
+
+/* PANTALLAS */
+.pantalla{display:none;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;flex-direction:column;}
+.pantalla.activa{display:flex;}
+
+/* FORMULARIO */
+.form-wrap{padding:16px;display:flex;flex-direction:column;gap:13px;}
+.campo{display:flex;flex-direction:column;gap:5px;}
+label.lbl{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--azul);}
+label.lbl .opt{font-weight:400;text-transform:none;letter-spacing:0;color:#8294a8;}
+
+input[type=date],input[type=number],input[type=text]{
+  border:1.5px solid var(--gris-borde);border-radius:9px;
+  padding:13px 14px;font-size:1rem;color:var(--texto);
+  background:#fff;width:100%;outline:none;
+  transition:border-color .15s;-webkit-appearance:none;appearance:none;
+}
+input:focus{border-color:var(--azul-medio);box-shadow:0 0 0 3px rgba(37,99,168,.12);}
+input.err{border-color:var(--acento);background:#fff5f5;}
+
+.tipo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.tipo-card{
+  border:2px solid var(--gris-borde);border-radius:10px;
+  padding:14px 8px;text-align:center;cursor:pointer;
+  font-size:.9rem;font-weight:700;color:#7a8fa6;
+  background:#fff;transition:all .15s;user-select:none;line-height:1.5;
+}
+.tipo-card .ico{font-size:1.5rem;display:block;margin-bottom:3px;}
+.tipo-card:active{transform:scale(.96);}
+.tipo-card.sel.titular{border-color:var(--verde);background:var(--verde-claro);color:var(--verde);}
+.tipo-card.sel.tutor{border-color:var(--azul-medio);background:var(--azul-claro);color:var(--azul-medio);}
+#wrap-dni-tutor{display:none;}
+
+.btn-primario{
+  background:var(--azul-medio);color:#fff;border:none;border-radius:10px;
+  padding:16px;font-size:1.05rem;font-weight:700;cursor:pointer;width:100%;
+  letter-spacing:.03em;transition:background .15s,transform .1s;-webkit-appearance:none;
+}
+.btn-primario:active{background:var(--azul);transform:scale(.98);}
+.btn-sec{
+  background:transparent;color:#8294a8;
+  border:1.5px solid var(--gris-borde);border-radius:10px;
+  padding:12px;font-size:.9rem;cursor:pointer;width:100%;
+  transition:all .15s;-webkit-appearance:none;
+}
+.btn-sec:active{border-color:#aaa;color:#555;}
+
+/* LISTA */
+.search-bar{padding:10px 14px;background:#fff;border-bottom:1px solid var(--gris-borde);position:sticky;top:0;z-index:5;flex-shrink:0;}
+.search-bar input{
+  width:100%;border:1.5px solid var(--gris-borde);border-radius:9px;
+  padding:10px 14px;font-size:.95rem;outline:none;
+  background:var(--gris-fila);-webkit-appearance:none;
+}
+.search-bar input:focus{border-color:var(--azul-medio);background:#fff;}
+
+.lista-subheader{
+  padding:7px 14px;background:var(--azul);color:#fff;
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:.78rem;font-weight:600;flex-shrink:0;
+}
+.nuevos-pill{background:var(--verde);border-radius:20px;padding:2px 10px;font-size:.72rem;font-weight:700;}
+.pendiente-pill{background:var(--acento);border-radius:20px;padding:2px 10px;font-size:.72rem;font-weight:700;}
+
+.lista-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.reg-list{padding:10px 14px;display:flex;flex-direction:column;gap:8px;}
+
+.reg-card{
+  background:#fff;border-radius:10px;
+  box-shadow:0 1px 4px rgba(26,58,92,.07);
+  padding:12px 14px;
+  border-left:4px solid var(--gris-borde);
+}
+.reg-card.nuevo{border-left-color:var(--verde);background:#f0faf4;}
+.reg-card.nuevo-flash{animation:flash .9s ease-out;}
+@keyframes flash{0%{background:#b7e4c7;}100%{background:#f0faf4;}}
+.reg-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:8px;}
+.reg-oblea{font-size:1rem;font-weight:800;font-family:monospace;color:var(--azul);}
+.reg-fecha{font-size:.78rem;color:var(--azul-medio);font-weight:600;}
+.reg-nombre{font-size:.92rem;font-weight:600;margin-bottom:3px;}
+.reg-dni{font-size:.78rem;color:#7a8fa6;font-family:monospace;}
+.badge{display:inline-block;border-radius:5px;padding:2px 8px;font-size:.72rem;font-weight:700;letter-spacing:.03em;margin-left:5px;}
+.badge-t{background:var(--verde-claro);color:var(--verde);}
+.badge-r{background:var(--azul-claro);color:var(--azul-medio);}
+.badge-o{background:var(--naranja-bg);color:var(--naranja);}
+.reg-obs{font-size:.75rem;color:#7a8fa6;margin-top:3px;font-style:italic;}
+
+.vacío{text-align:center;padding:48px 20px;color:#8294a8;font-size:.9rem;line-height:1.9;}
+
+/* PESTAÑA ARCHIVO */
+.arch-wrap{padding:16px;display:flex;flex-direction:column;gap:14px;}
+.card{background:#fff;border-radius:12px;box-shadow:0 1px 6px rgba(26,58,92,.08);padding:16px;display:flex;flex-direction:column;gap:10px;}
+.card-titulo{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--azul);}
+.card-desc{font-size:.82rem;color:#5a6b82;line-height:1.55;}
+.file-btn{
+  display:block;text-align:center;
+  background:var(--azul-claro);color:var(--azul-medio);
+  border:1.5px solid var(--azul-medio);border-radius:9px;
+  padding:13px;font-size:.92rem;font-weight:700;cursor:pointer;
+}
+.file-btn:active{background:var(--azul-medio);color:#fff;}
+#input-file{display:none;}
+#nombre-archivo{font-size:.82rem;color:#7a8fa6;font-style:italic;text-align:center;}
+
+.btn-exportar{
+  background:var(--verde);color:#fff;border:none;border-radius:10px;
+  padding:15px;font-size:1rem;font-weight:700;cursor:pointer;width:100%;
+  letter-spacing:.03em;-webkit-appearance:none;
+}
+.btn-exportar:active{background:#145f38;}
+.btn-exportar:disabled{opacity:.38;pointer-events:none;}
+
+.alerta-box{
+  border-radius:9px;padding:12px 14px;font-size:.82rem;line-height:1.6;
+  display:flex;gap:10px;align-items:flex-start;
+}
+.alerta-box.verde{background:var(--verde-claro);color:#145f38;border:1px solid #a7d7b8;}
+.alerta-box.naranja{background:var(--naranja-bg);color:#92400e;border:1px solid #fbbf24;}
+.alerta-box.rojo{background:#fef2f2;color:#991b1b;border:1px solid #fca5a5;}
+.alerta-ico{font-size:1.2rem;flex-shrink:0;margin-top:1px;}
+
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.stat-box{background:var(--gris-fila);border-radius:9px;padding:12px;text-align:center;}
+.stat-num{font-size:1.6rem;font-weight:800;color:var(--azul);line-height:1;}
+.stat-lbl{font-size:.72rem;color:#7a8fa6;margin-top:4px;text-transform:uppercase;letter-spacing:.05em;}
+.stat-num.verde{color:var(--verde);}
+
+.btn-danger{
+  background:transparent;color:var(--acento);
+  border:1.5px solid var(--acento);border-radius:10px;
+  padding:11px;font-size:.88rem;font-weight:700;cursor:pointer;width:100%;
+  -webkit-appearance:none;
+}
+.btn-danger:active{background:var(--acento);color:#fff;}
+
+/* TOAST */
+#toast{
+  position:fixed;bottom:24px;left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:var(--azul);color:#fff;border-radius:10px;
+  padding:12px 22px;font-size:.9rem;font-weight:600;
+  box-shadow:0 4px 18px rgba(0,0,0,.22);z-index:999;
+  opacity:0;transition:all .22s;pointer-events:none;
+  white-space:nowrap;max-width:90vw;text-align:center;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#toast.ok{background:var(--verde);}
+#toast.err{background:var(--acento);}
+#toast.inf{background:var(--azul-medio);}
+
+/* MODAL CONFIRMACIÓN */
+#modal-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.55);z-index:200;
+  align-items:center;justify-content:center;padding:24px;
+}
+#modal-overlay.show{display:flex;}
+.modal{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:340px;text-align:center;}
+.modal h3{font-size:1.05rem;margin-bottom:10px;color:var(--texto);}
+.modal p{font-size:.88rem;color:#5a6b82;line-height:1.55;margin-bottom:18px;}
+.modal-btns{display:flex;flex-direction:column;gap:10px;}
+
+/* Install banner */
+#install-bar{
+  display:none;background:var(--azul-medio);color:#fff;
+  padding:9px 16px;font-size:.8rem;
+  align-items:center;justify-content:space-between;gap:10px;
+  flex-shrink:0;
+}
+#install-bar button.inst{background:#fff;color:var(--azul-medio);border:none;border-radius:6px;padding:6px 14px;font-size:.8rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+#install-bar button.cerrar{background:transparent;color:rgba(255,255,255,.7);border:none;font-size:1.1rem;padding:4px 8px;cursor:pointer;}
+
+@supports(padding:max(0px)){
+  .pantalla{padding-bottom:max(0px,env(safe-area-inset-bottom));}
+}
+</style>
+
+<script>
+// Registrar Service Worker para funcionamiento offline
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/control-pases/sw.js')
+      .catch(err => console.log('SW no disponible:', err));
+  });
+}
+</script>
+</head>
+<body>
+
+<div id="install-bar">
+  <span>📲 Instalá la app en tu pantalla de inicio</span>
+  <div style="display:flex;gap:6px">
+    <button class="inst" id="btn-install">Instalar</button>
+    <button class="cerrar" onclick="cerrarInstall()">✕</button>
+  </div>
+</div>
+
+<header>
+  <div>
+    <h1>Control de Pases <small>Sección Discapacidad — DGT</small></h1>
+  </div>
+  <span class="header-badge" id="hdr-total">0 reg.</span>
+</header>
+
+<!-- Banner de estado guardado -->
+<div id="banner-guardado"></div>
+
+<div class="tabs">
+  <div class="tab activo" id="tab-form" onclick="irTab('form')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+    Nueva entrega
+  </div>
+  <div class="tab" id="tab-lista" onclick="irTab('lista')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1.5" fill="currentColor"/><circle cx="3" cy="12" r="1.5" fill="currentColor"/><circle cx="3" cy="18" r="1.5" fill="currentColor"/></svg>
+    Registros
+    <span class="tab-badge" id="tab-nuevos-badge" style="display:none"></span>
+  </div>
+  <div class="tab" id="tab-archivo" onclick="irTab('archivo')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+    Archivo
+    <span class="tab-badge" id="tab-pendiente-badge" style="display:none;background:var(--acento)"></span>
+  </div>
+</div>
+
+<!-- ══ TAB FORMULARIO ══ -->
+<div class="pantalla activa" id="pant-form">
+<div class="form-wrap">
+
+  <div class="campo">
+    <label class="lbl" for="fecha">Fecha de entrega</label>
+    <input type="date" id="fecha" required>
+  </div>
+
+  <div class="campo">
+    <label class="lbl" for="oblea">N° de Oblea</label>
+    <input type="number" id="oblea" placeholder="Ej: 51717" min="1" inputmode="numeric" required>
+  </div>
+
+  <div class="campo">
+    <label class="lbl" for="nombre">Apellido y Nombre</label>
+    <input type="text" id="nombre" placeholder="Ej: GARCIA MARIO"
+      oninput="this.value=this.value.toUpperCase()" autocomplete="off" spellcheck="false" required>
+  </div>
+
+  <div class="campo">
+    <label class="lbl" for="dni">DNI Titular</label>
+    <input type="text" id="dni" placeholder="Ej: 28541326"
+      inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'')" required>
+  </div>
+
+  <div class="campo">
+    <label class="lbl">¿Quién retira?</label>
+    <div class="tipo-grid">
+      <div class="tipo-card titular sel" id="card-titular" onclick="setTipo('TITULAR')">
+        <span class="ico">✅</span>Titular
+      </div>
+      <div class="tipo-card tutor" id="card-tutor" onclick="setTipo('TUTOR')">
+        <span class="ico">👤</span>Tutor / Familiar
+      </div>
+    </div>
+  </div>
+
+  <div class="campo" id="wrap-dni-tutor">
+    <label class="lbl" for="dni-tutor">DNI de quien retira</label>
+    <input type="text" id="dni-tutor" placeholder="DNI del tutor o familiar"
+      inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'')">
+  </div>
+
+  <div class="campo">
+    <label class="lbl" for="obs">Observación <span class="opt">(opcional)</span></label>
+    <input type="text" id="obs" placeholder="Ej: NO COINCIDE DNI, PEDIDO JUAN OLEA...">
+  </div>
+
+  <button class="btn-primario" id="btn-agregar" onclick="guardar()">
+    ✚ &nbsp;Agregar registro
+  </button>
+  <button class="btn-sec" onclick="limpiar()">Limpiar formulario</button>
+
+</div>
+</div>
+
+<!-- ══ TAB LISTA ══ -->
+<div class="pantalla" id="pant-lista">
+  <div class="search-bar">
+    <input type="text" id="buscador" placeholder="🔍  Nombre, DNI, N° oblea, fecha..."
+      oninput="filtrar()">
+  </div>
+  <div class="lista-subheader">
+    <span id="contador-lbl">0 registros</span>
+    <span id="pill-nuevos" class="nuevos-pill" style="display:none"></span>
+  </div>
+  <div class="lista-scroll">
+    <div class="reg-list" id="reg-list">
+      <div class="vacío">
+        Todavía no hay registros.<br>
+        Usá la pestaña <strong>Nueva entrega</strong><br>para empezar a cargar.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB ARCHIVO ══ -->
+<div class="pantalla" id="pant-archivo">
+<div class="arch-wrap">
+
+  <!-- Estado del guardado -->
+  <div class="card">
+    <div class="card-titulo">📊 Estado actual</div>
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-num" id="stat-total">0</div>
+        <div class="stat-lbl">Total registros</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num verde" id="stat-nuevos">0</div>
+        <div class="stat-lbl">Sin exportar</div>
+      </div>
+    </div>
+    <div id="alerta-estado"></div>
+  </div>
+
+  <!-- Cargar histórico -->
+  <div class="card">
+    <div class="card-titulo">📂 Cargar registros anteriores</div>
+    <div class="card-desc">Para combinar con registros de otros celulares o importar el historial de la PC.</div>
+    <label class="file-btn" for="input-file">Seleccionar .xlsx / .xlsm</label>
+    <input type="file" id="input-file" accept=".xlsx,.xlsm,.xls">
+    <div id="nombre-archivo">Ningún archivo seleccionado</div>
+  </div>
+
+  <!-- Exportar -->
+  <div class="card">
+    <div class="card-titulo">💾 Exportar a Excel</div>
+    <div class="card-desc">Descargá el archivo completo para abrirlo en la PC. Hacé esto cada vez que llegues a la oficina.</div>
+    <button class="btn-exportar" id="btn-exportar" onclick="exportar()">
+      ⬇️ &nbsp;Descargar .xlsx
+    </button>
+    <div class="alerta-box naranja">
+      <span class="alerta-ico">📱</span>
+      <span>Descargá → compartí por WhatsApp o Drive a la PC → abrí en Excel.</span>
+    </div>
+  </div>
+
+  <!-- Zona peligrosa -->
+  <div class="card">
+    <div class="card-titulo" style="color:var(--acento)">⚠️ Zona de riesgo</div>
+    <div class="card-desc">Borra todos los datos guardados en este celular. Usalo solo después de haber exportado y confirmado que el Excel está en la PC.</div>
+    <button class="btn-danger" onclick="confirmarBorrar()">Borrar todos los datos del celular</button>
+  </div>
+
+</div>
+</div>
+
+<!-- Modal confirmación borrar -->
+<div id="modal-overlay">
+  <div class="modal">
+    <h3>⚠️ ¿Borrar todos los datos?</h3>
+    <p>Esta acción elimina todos los registros guardados en este celular.<br><strong>Asegurate de haber exportado el Excel primero.</strong></p>
+    <div class="modal-btns">
+      <button class="btn-danger" onclick="borrarTodo()">Sí, borrar todo</button>
+      <button class="btn-sec" onclick="cerrarModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  CONSTANTES
+// ══════════════════════════════════════════════════════
+const STORAGE_KEY = 'pases_dgt_registros';
+const STORAGE_TS  = 'pases_dgt_ultimo_guardado';
+
+// ══════════════════════════════════════════════════════
+//  ESTADO
+// ══════════════════════════════════════════════════════
+let registros = [];   // { fecha, oblea, nombre, dni, tt, nuevo: bool, id: timestamp }
+let tipoRetira = 'TITULAR';
+let deferredInstall = null;
+
+// ══════════════════════════════════════════════════════
+//  INIT — carga desde localStorage al abrir
+// ══════════════════════════════════════════════════════
+(function init() {
+  document.getElementById('fecha').valueAsDate = new Date();
+  cargarDeStorage();
+  renderLista(registros);
+  actualizarEstado();
+})();
+
+// ══════════════════════════════════════════════════════
+//  STORAGE — guardar y cargar
+// ══════════════════════════════════════════════════════
+function guardarEnStorage() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(registros));
+    localStorage.setItem(STORAGE_TS, new Date().toISOString());
+    return true;
+  } catch(e) {
+    // localStorage lleno (raro, pero posible)
+    mostrarBanner('⚠️ No se pudo guardar: almacenamiento lleno. Exportá el archivo ahora.', true);
+    return false;
+  }
+}
+
+function cargarDeStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      registros = JSON.parse(raw);
+    }
+  } catch(e) {
+    registros = [];
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  BANNER DE ESTADO
+// ══════════════════════════════════════════════════════
+let bannerTimer = null;
+function mostrarBanner(msg, esWarn = false) {
+  const el = document.getElementById('banner-guardado');
+  el.textContent = msg;
+  el.className = esWarn ? 'warn' : '';
+  el.style.display = 'flex';
+  clearTimeout(bannerTimer);
+  if (!esWarn) {
+    bannerTimer = setTimeout(() => { el.style.display = 'none'; }, 2800);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  ACTUALIZAR CONTADORES Y ALERTAS
+// ══════════════════════════════════════════════════════
+function actualizarEstado() {
+  const total  = registros.length;
+  const nuevos = registros.filter(r => r.nuevo).length;
+
+  // Header
+  document.getElementById('hdr-total').textContent = total + ' reg.';
+
+  // Stats en pestaña archivo
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-nuevos').textContent = nuevos;
+
+  // Badge pestaña registros
+  const tnb = document.getElementById('tab-nuevos-badge');
+  if (nuevos > 0) { tnb.style.display = 'inline-block'; tnb.textContent = nuevos; }
+  else tnb.style.display = 'none';
+
+  // Badge pestaña archivo (pendiente de exportar)
+  const tpb = document.getElementById('tab-pendiente-badge');
+  if (nuevos > 0) { tpb.style.display = 'inline-block'; tpb.textContent = '!'; }
+  else tpb.style.display = 'none';
+
+  // Pill en lista
+  const pill = document.getElementById('pill-nuevos');
+  if (nuevos > 0) { pill.style.display = 'inline-block'; pill.textContent = `+${nuevos} sin exportar`; }
+  else pill.style.display = 'none';
+
+  // Alerta en pestaña archivo
+  const aEl = document.getElementById('alerta-estado');
+  const ts = localStorage.getItem(STORAGE_TS);
+  let tsStr = '';
+  if (ts) {
+    const d = new Date(ts);
+    tsStr = `Último guardado: ${d.toLocaleDateString('es-AR')} a las ${d.toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'})}`;
+  }
+  if (nuevos === 0 && total > 0) {
+    aEl.innerHTML = `<div class="alerta-box verde"><span class="alerta-ico">✅</span><span>Todos los datos están exportados.<br><small>${tsStr}</small></span></div>`;
+  } else if (nuevos > 0) {
+    aEl.innerHTML = `<div class="alerta-box rojo"><span class="alerta-ico">⚠️</span><span><strong>${nuevos} registro${nuevos>1?'s':''} sin exportar.</strong> Exportá el Excel para no perderlos.<br><small>${tsStr}</small></span></div>`;
+  } else {
+    aEl.innerHTML = `<div class="alerta-box naranja"><span class="alerta-ico">ℹ️</span><span>No hay registros todavía.</span></div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════════════════════
+function irTab(id) {
+  ['form','lista','archivo'].forEach(t => {
+    document.getElementById('pant-' + t).classList.toggle('activa', t === id);
+    document.getElementById('tab-' + t).classList.toggle('activo', t === id);
+  });
+  if (id === 'lista') filtrar();
+  if (id === 'archivo') actualizarEstado();
+}
+
+// ══════════════════════════════════════════════════════
+//  TIPO TITULAR / TUTOR
+// ══════════════════════════════════════════════════════
+function setTipo(t) {
+  tipoRetira = t;
+  document.getElementById('card-titular').classList.toggle('sel', t === 'TITULAR');
+  document.getElementById('card-tutor').classList.toggle('sel', t === 'TUTOR');
+  document.getElementById('wrap-dni-tutor').style.display = t === 'TUTOR' ? 'flex' : 'none';
+  if (t === 'TUTOR') document.getElementById('dni-tutor').focus();
+}
+
+// ══════════════════════════════════════════════════════
+//  GUARDAR REGISTRO — el corazón de la app
+// ══════════════════════════════════════════════════════
+function guardar() {
+  const fecha  = document.getElementById('fecha').value;
+  const oblea  = document.getElementById('oblea').value.trim();
+  const nombre = document.getElementById('nombre').value.trim();
+  const dni    = document.getElementById('dni').value.trim();
+  const obs    = document.getElementById('obs').value.trim();
+  const dniT   = document.getElementById('dni-tutor').value.trim();
+
+  // Validación
+  let ok = true;
+  [{id:'fecha',v:fecha},{id:'oblea',v:oblea},{id:'nombre',v:nombre},{id:'dni',v:dni}].forEach(x => {
+    document.getElementById(x.id).classList.toggle('err', !x.v);
+    if (!x.v) ok = false;
+  });
+  if (!ok) { toast('Completá los campos obligatorios','err'); return; }
+  if (tipoRetira === 'TUTOR' && !dniT) {
+    document.getElementById('dni-tutor').classList.add('err');
+    toast('Ingresá el DNI del tutor','err');
+    return;
+  }
+
+  // Armar campo tt igual al formato original del Excel
+  let tt = tipoRetira === 'TITULAR'
+    ? ('TITULAR' + (obs ? ' ' + obs : ''))
+    : (dniT + ' TUTOR' + (obs ? ' ' + obs : ''));
+
+  // Formatear fecha dd/mm/yyyy
+  const [y,m,d] = fecha.split('-');
+  const fechaStr = `${d}/${m}/${y}`;
+
+  const reg = {
+    id:     Date.now(),          // ID único = timestamp
+    fecha:  fechaStr,
+    oblea:  oblea,
+    nombre: nombre,
+    dni:    dni,
+    tt:     tt,
+    nuevo:  true                 // marca "pendiente de exportar"
+  };
+
+  // Agregar al principio
+  registros.unshift(reg);
+
+  // ★ GUARDAR INMEDIATAMENTE EN STORAGE ★
+  const guardadoOk = guardarEnStorage();
+
+  if (guardadoOk) {
+    mostrarBanner(`✅ Guardado: ${nombre}`);
+    renderLista(registros);
+    actualizarEstado();
+    toast('Registro guardado ✓', 'ok');
+    limpiar(true);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  RENDER LISTA
+// ══════════════════════════════════════════════════════
+function renderLista(data) {
+  const el = document.getElementById('reg-list');
+  document.getElementById('contador-lbl').textContent = `${registros.length} registros`;
+
+  if (!data.length) {
+    const msg = document.getElementById('buscador').value.trim()
+      ? 'No hay coincidencias con tu búsqueda.'
+      : 'Todavía no hay registros.\nUsá la pestaña <strong>Nueva entrega</strong>.';
+    el.innerHTML = `<div class="vacío">${msg}</div>`;
+    return;
+  }
+  el.innerHTML = data.map(r => {
+    const {badge, extra} = parseTT(r.tt);
+    return `<div class="reg-card${r.nuevo ? ' nuevo nuevo-flash' : ''}">
+      <div class="reg-card-top">
+        <span class="reg-oblea">Oblea #${r.oblea}</span>
+        <span class="reg-fecha">${r.fecha}</span>
+      </div>
+      <div class="reg-nombre">${r.nombre}${badge}</div>
+      <div class="reg-dni">DNI ${r.dni}${extra ? ' · ' + extra : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+function parseTT(val) {
+  if (!val) return {badge:'', extra:''};
+  const v = val.toUpperCase();
+  if (v.startsWith('TITULAR')) {
+    const resto = val.replace(/^TITULAR\s*/i,'').trim();
+    return {badge:`<span class="badge badge-t">TITULAR</span>`, extra: resto};
+  }
+  if (v.includes('TUTOR')) {
+    const dniP = val.replace(/tutor/i,'').trim();
+    return {badge:`<span class="badge badge-r">TUTOR</span>`, extra: dniP ? 'DNI tutor: '+dniP : ''};
+  }
+  const c = val.length > 35 ? val.substring(0,33)+'…' : val;
+  return {badge:`<span class="badge badge-o">${c}</span>`, extra:''};
+}
+
+// ══════════════════════════════════════════════════════
+//  FILTRO
+// ══════════════════════════════════════════════════════
+function filtrar() {
+  const q = document.getElementById('buscador').value.toLowerCase().trim();
+  if (!q) { renderLista(registros); return; }
+  renderLista(registros.filter(r =>
+    (r.nombre||'').toLowerCase().includes(q) ||
+    (r.dni||'').includes(q) ||
+    (r.oblea||'').toString().includes(q) ||
+    (r.fecha||'').includes(q) ||
+    (r.tt||'').toLowerCase().includes(q)
+  ));
+}
+
+// ══════════════════════════════════════════════════════
+//  LIMPIAR FORMULARIO
+// ══════════════════════════════════════════════════════
+function limpiar(mantFecha=false) {
+  if (!mantFecha) document.getElementById('fecha').valueAsDate = new Date();
+  ['oblea','nombre','dni','dni-tutor','obs'].forEach(id => {
+    const el = document.getElementById(id);
+    el.value = ''; el.classList.remove('err');
+  });
+  document.getElementById('fecha').classList.remove('err');
+  setTipo('TITULAR');
+  document.getElementById('oblea').focus();
+}
+
+// ══════════════════════════════════════════════════════
+//  CARGAR ARCHIVO HISTÓRICO
+// ══════════════════════════════════════════════════════
+document.getElementById('input-file').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('nombre-archivo').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = new Uint8Array(ev.target.result);
+      const wb = XLSX.read(data, {type:'array', cellDates:true});
+      const sn = wb.SheetNames.find(n => n.toUpperCase().includes('ENTREGA')) || wb.SheetNames[0];
+      const raw = XLSX.utils.sheet_to_json(wb.Sheets[sn], {header:1, raw:false, dateNF:'dd/mm/yyyy'});
+
+      let hdr = -1;
+      for (let i = 0; i < raw.length; i++) {
+        if (raw[i].some(c => typeof c === 'string' && c.toUpperCase().includes('FECHA'))) { hdr = i; break; }
+      }
+      if (hdr < 0) { toast('No se encontró la estructura del archivo','err'); return; }
+
+      // IDs existentes para no duplicar
+      const idsExistentes = new Set(registros.map(r => r.oblea + '|' + r.fecha + '|' + r.dni));
+      let importados = 0;
+      const historicos = [];
+
+      for (let i = hdr+1; i < raw.length; i++) {
+        const r = raw[i];
+        if (!r[2] && !r[3]) continue;
+        const key = (r[3]||'') + '|' + (r[2]||'') + '|' + (r[5]||'');
+        if (!idsExistentes.has(key)) {
+          historicos.push({
+            id:     Date.now() + i,
+            fecha:  r[2]||'',
+            oblea:  r[3]||'',
+            nombre: r[4]||'',
+            dni:    r[5]||'',
+            tt:     r[6]||'',
+            nuevo:  false   // históricos = ya exportados
+          });
+          importados++;
+        }
+      }
+
+      // Agregar históricos al final
+      registros = [...registros, ...historicos];
+      guardarEnStorage();
+      renderLista(registros);
+      actualizarEstado();
+      toast(`${importados} registros importados`, 'ok');
+    } catch(err) { toast('Error al leer: ' + err.message,'err'); }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+// ══════════════════════════════════════════════════════
+//  EXPORTAR A EXCEL
+// ══════════════════════════════════════════════════════
+function exportar() {
+  if (!registros.length) { toast('No hay datos para exportar','err'); return; }
+
+  const wb = XLSX.utils.book_new();
+  const rows = [
+    ['','','','','','','','','',''],
+    ['','','','','','','','','',''],
+    ['','','','','','','','','',''],
+    ['','','','','','','','','',''],
+    ['','','FECHA DE ENTREGA','N° OBLEAS','APELLIDO Y NOMBRE','DNI TITULAR',' TITULAR/ DNI TUTOR','','','']
+  ];
+
+  // Exportar orden cronológico (más viejos primero, como el original)
+  [...registros].reverse().forEach(r => {
+    let fechaX = r.fecha;
+    if (r.fecha && r.fecha.includes('/')) {
+      const [dd,mm,yyyy] = r.fecha.split('/');
+      fechaX = new Date(+yyyy, +mm-1, +dd);
+    }
+    rows.push(['','', fechaX, r.oblea ? Number(r.oblea) : r.oblea, r.nombre, r.dni, r.tt,'','','']);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  for (let i = 5; i < rows.length; i++) {
+    const c = XLSX.utils.encode_cell({r:i, c:2});
+    if (ws[c] && ws[c].v instanceof Date) { ws[c].t='d'; ws[c].z='dd/mm/yyyy'; }
+  }
+  ws['!cols'] = [{wch:4},{wch:4},{wch:15},{wch:10},{wch:30},{wch:14},{wch:28}];
+  XLSX.utils.book_append_sheet(wb, ws, 'ENTREGAS');
+
+  const hoy = new Date();
+  const nom = `PASES_${hoy.getFullYear()}${String(hoy.getMonth()+1).padStart(2,'0')}${String(hoy.getDate()).padStart(2,'0')}.xlsx`;
+  XLSX.writeFile(wb, nom);
+
+  // Marcar todos como exportados
+  registros.forEach(r => r.nuevo = false);
+  guardarEnStorage();
+  actualizarEstado();
+  renderLista(registros);
+  toast('Archivo descargado ✓','ok');
+}
+
+// ══════════════════════════════════════════════════════
+//  BORRAR TODO
+// ══════════════════════════════════════════════════════
+function confirmarBorrar() {
+  const nuevos = registros.filter(r => r.nuevo).length;
+  if (nuevos > 0) {
+    // Si hay datos sin exportar, doble advertencia
+    if (!confirm(`⚠️ Tenés ${nuevos} registro${nuevos>1?'s':''} SIN EXPORTAR.\n\n¿Seguro que querés borrar todo? Esta acción no se puede deshacer.`)) return;
+  }
+  document.getElementById('modal-overlay').classList.add('show');
+}
+function cerrarModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+function borrarTodo() {
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(STORAGE_TS);
+  registros = [];
+  cerrarModal();
+  renderLista(registros);
+  actualizarEstado();
+  toast('Datos borrados del celular','inf');
+}
+
+// ══════════════════════════════════════════════════════
+//  PWA INSTALL
+// ══════════════════════════════════════════════════════
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstall = e;
+  document.getElementById('install-bar').style.display = 'flex';
+});
+document.getElementById('btn-install').addEventListener('click', () => {
+  if (!deferredInstall) return;
+  deferredInstall.prompt();
+  deferredInstall.userChoice.then(() => {
+    deferredInstall = null;
+    cerrarInstall();
+  });
+});
+function cerrarInstall() {
+  document.getElementById('install-bar').style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════════
+function toast(msg, t='inf') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show ${t}`;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = '', 3000);
+}
+
+// ══════════════════════════════════════════════════════
+//  VISIBILIDAD — guardar cuando el usuario sale de la app
+// ══════════════════════════════════════════════════════
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    guardarEnStorage();
+  }
+});
+window.addEventListener('pagehide', () => guardarEnStorage());
+window.addEventListener('beforeunload', () => guardarEnStorage());
+</script>
+</body>
+</html>
